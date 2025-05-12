@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Hệ thống gợi ý phim AI</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <h1>🎥 Gợi ý phim bằng AI</h1>
+  <form method="POST">
+    <input type="text" name="query" placeholder="Nhập sở thích, từ khóa phim..." required>
+    <select name="genre">
+      <option value="All">Tất cả thể loại</option>
+      {% for g in genres %}
+        <option value="{{g}}">{{g}}</option>
+      {% endfor %}
+    </select>
+    <button type="submit">Tìm kiếm</button>
+  </form>
+
+  <h2>Kết quả tìm kiếm:</h2>
+  <ul>
+    {% for movie in results.itertuples() %}
+      <li><b>{{movie.title}}</b> - {{movie.genres}}</li>
+    {% endfor %}
+  </ul>
+
+  <h2>Phim bạn có thể thích:</h2>
+  <ul>
+    {% for movie in recommendations.itertuples() %}
+      <li><b>{{movie.title}}</b> - {{movie.genres}}</li>
+    {% endfor %}
+  </ul>
+</body>
+</html>
