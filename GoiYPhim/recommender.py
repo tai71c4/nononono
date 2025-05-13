@@ -1,42 +1,30 @@
 import pandas as pd
-from surprise import SVD, Dataset, Reader
-from surprise.model_selection import train_test_split
 
-# Load dữ liệu
-print("Đang tải dữ liệu...")
+# Tải dữ liệu
 movies = pd.read_csv('data/movies.csv')
 ratings = pd.read_csv('data/ratings.csv')
 
-# Chuẩn bị dữ liệu cho Surprise
-print("Đang chuẩn bị dữ liệu...")
-reader = Reader(rating_scale=(0.5, 5.0))
-data = Dataset.load_from_df(ratings[['userId', 'movieId', 'rating']], reader)
+# Gộp trung bình đánh giá vào dataset phim
+movie_ratings = ratings.groupby('movieId')['rating'].mean().reset_index()
+movie_ratings.columns = ['movieId', 'avg_rating']
+movies = movies.merge(movie_ratings, on='movieId', how='left').fillna(0)
 
-# Chia dữ liệu
-trainset, testset = train_test_split(data, test_size=0.2)
+def search_movies_by_keywords(keywords, top_n=20):
+    """
+    Tìm kiếm phim theo từ khóa từ nhiều trường, sắp xếp theo đánh giá cao nhất
+    """
+    keywords = keywords.lower().split(',')
+    conditions = pd.Series(False, index=movies.index)
 
-# Huấn luyện mô hình SVD
-print("Đang huấn luyện mô hình SVD...")
-algo = SVD()
-algo.fit(trainset)
+    for keyword in keywords:
+        keyword = keyword.strip()
+        conditions |= movies['title'].str.lower().str.contains(keyword, na=False)
+        conditions |= movies['cast_and_crew'].str.lower().str.contains(keyword, na=False)
+        conditions |= movies['genre'].str.lower().str.contains(keyword, na=False)
+        conditions |= movies['year'].astype(str).str.contains(keyword, na=False)
+        conditions |= movies['movieId'].astype(str).str.contains(keyword, na=False)
 
-print("Đã huấn luyện xong mô hình!")
+    results = movies[conditions].sort_values(by='avg_rating', ascending=False).head(top_n)
 
-# Hàm gợi ý phim
-def recommend_movies(user_id, top_n=5):
-    print(f"Tìm gợi ý cho user_id: {user_id}")
-    if user_id not in ratings['userId'].unique():
-        return ["❌ Không tìm thấy người dùng."]
-
-    rated_movies = ratings[ratings['userId'] == user_id]['movieId'].values
-    all_movie_ids = movies['movieId'].unique()
-    movies_to_predict = [mid for mid in all_movie_ids if mid not in rated_movies]
-
-    predictions = [algo.predict(user_id, mid) for mid in movies_to_predict]
-    predictions.sort(key=lambda x: x.est, reverse=True)
-    top_predictions = predictions[:top_n]
-
-    recommended_movie_ids = [pred.iid for pred in top_predictions]
-    recommended_movies = movies[movies['movieId'].isin(recommended_movie_ids)]['title'].tolist()
-
-    return recommended_movies if recommended_movies else ["Không tìm thấy phim phù hợp."]
+    # Trả về cả danh sách phim lẫn dữ liệu để vẽ biểu đồ
+    return results[['title', 'genre', 'avg_rating', 'poster_path']].to_dict(orient='records')

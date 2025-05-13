@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Movie Recommender</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css"/>
   <style>
     body {
@@ -38,62 +39,54 @@
     }
   </style>
 </head>
-<body class="min-h-screen flex items-center justify-center text-white bg-black bg-opacity-50">
+<body class="min-h-screen flex flex-col items-center text-white bg-black bg-opacity-50 px-4 py-8">
 
-  <div class="container mx-auto px-4 py-8 max-w-5xl">
-    <!-- Header -->
-    <h1 class="text-5xl font-bold text-center mb-10 drop-shadow-lg">
-      <i class="fas fa-film mr-2 text-yellow-400"></i> Movie Recommender
-    </h1>
+  <!-- Header -->
+  <h1 class="text-5xl font-bold text-center mb-10 drop-shadow-lg">
+    <i class="fas fa-film mr-2 text-yellow-400"></i> Hệ Thống Gợi Ý Phim 
+  </h1>
 
-    <!-- Search -->
-    <div class="mb-12 max-w-3xl mx-auto">
-      <div class="flex items-center bg-white bg-opacity-10 backdrop-blur rounded-full px-6 py-3 shadow-lg">
-        <input
-          type="text"
-          id="preferences"
-          placeholder="Type your favorite genres (e.g. action, comedy)..."
-          class="flex-1 bg-transparent text-white placeholder-gray-300 focus:outline-none"
-          oninput="showSuggestions()"
-        />
-        <button
-          onclick="getRecommendations()"
-          class="ml-4 bg-yellow-500 text-black px-6 py-2 rounded-full font-semibold hover:bg-yellow-600 transition"
-        >
-          <i class="fas fa-magic mr-2"></i> Recommend
-        </button>
-      </div>
-      <div id="suggestions" class="absolute bg-white rounded-lg shadow-lg mt-2 hidden z-10 w-full max-w-3xl mx-auto">
-        <ul id="suggestion-list" class="text-gray-800"></ul>
-      </div>
+  <!-- Search Box -->
+  <div class="mb-12 max-w-3xl w-full">
+    <div class="flex items-center bg-white bg-opacity-10 backdrop-blur rounded-full px-6 py-3 shadow-lg">
+      <input
+        type="text"
+        id="preferences"
+        placeholder="Nhập thể loại, diễn viên, năm, tiêu đề..."
+        class="flex-1 bg-transparent text-white placeholder-gray-300 focus:outline-none"
+        oninput="showSuggestions()"
+      />
+      <button
+        onclick="getRecommendations()"
+        class="ml-4 bg-yellow-500 text-black px-6 py-2 rounded-full font-semibold hover:bg-yellow-600 transition"
+      >
+        <i class="fas fa-magic mr-2"></i> Tìm
+      </button>
     </div>
-
-    <!-- Results -->
-    {% if results %}
-    <div class="grid sm:grid-cols-2 md:grid-cols-3 gap-6 fade-in">
-      {% for movie in results %}
-      <div class="movie-card bg-white bg-opacity-10 backdrop-blur rounded-xl overflow-hidden shadow-md transition-transform duration-300">
-        <div class="p-4">
-          <h3 class="text-xl font-semibold text-white">{{ movie }}</h3>
-          <p class="text-sm text-gray-300">Genres: {{ query }}</p>
-        </div>
-      </div>
-      {% endfor %}
+    <div id="suggestions" class="absolute bg-white rounded-lg shadow-lg mt-2 hidden z-10 w-full max-w-3xl mx-auto">
+      <ul id="suggestion-list" class="text-gray-800"></ul>
     </div>
-    {% else %}
-    <p class="text-center text-gray-300 italic mt-10 fade-in">Start typing your preferences to get movie recommendations!</p>
-    {% endif %}
+  </div>
+
+  <!-- Results -->
+  <div id="results" class="grid sm:grid-cols-2 md:grid-cols-3 gap-6 fade-in max-w-5xl w-full mb-16"></div>
+
+  <!-- Chart -->
+  <div class="max-w-5xl w-full">
+    <h2 class="text-2xl font-semibold mb-4">Biểu đồ đánh giá 20 phim:</h2>
+    <canvas id="ratingChart" height="120"></canvas>
   </div>
 
   <script>
     const genres = ['action', 'sci-fi', 'comedy', 'romance', 'horror', 'adventure', 'drama', 'crime', 'animation', 'family'];
+    let chartInstance = null;
 
     function showSuggestions() {
       const input = document.getElementById('preferences').value.toLowerCase();
       const suggestionsDiv = document.getElementById('suggestions');
       const suggestionList = document.getElementById('suggestion-list');
 
-      if (input.length === 0) {
+      if (!input) {
         suggestionsDiv.classList.add('hidden');
         return;
       }
@@ -115,24 +108,82 @@
     }
 
     async function getRecommendations() {
-      const preferences = document.getElementById('preferences').value;
-      if (!preferences) return alert('Please enter some genres!');
+      const preferences = document.getElementById('preferences').value.trim();
+      const resultsContainer = document.getElementById('results');
+      const chartCanvas = document.getElementById('ratingChart');
+
+      if (!preferences) {
+        alert("Vui lòng nhập từ khóa!");
+        return;
+      }
+
+      resultsContainer.innerHTML = ''; // clear cũ
 
       try {
-        const response = await fetch('/recommend-by-preferences', {
+        const res = await fetch('/recommend-by-preferences', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ preferences }),
+          body: JSON.stringify({ preferences })
         });
 
-        const data = await response.json();
+        const data = await res.json();
+
         if (data.error) {
           alert(data.error);
-        } else {
-          window.location.href = `/results?query=${encodeURIComponent(preferences)}&movies=${encodeURIComponent(JSON.stringify(data.movies))}`;
+          return;
         }
-      } catch (error) {
-        alert('An error occurred: ' + error.message);
+
+        const titles = [];
+        const ratings = [];
+
+        data.movies.forEach(movie => {
+          titles.push(movie.title);
+          ratings.push(movie.avg_rating);
+
+          const card = document.createElement('div');
+          card.className = 'movie-card bg-white bg-opacity-10 backdrop-blur rounded-xl overflow-hidden shadow-md transition-transform duration-300';
+
+          card.innerHTML = `
+            <div class="p-4">
+              <h3 class="text-xl font-semibold text-white">${movie.title}</h3>
+              <p class="text-sm text-gray-300">Thể loại: ${movie.genre}</p>
+              <p class="text-sm text-green-400">Đánh giá: ${movie.avg_rating.toFixed(2)}</p>
+            </div>
+          `;
+
+          resultsContainer.appendChild(card);
+        });
+
+        // Vẽ biểu đồ
+        if (chartInstance) chartInstance.destroy();
+
+        chartInstance = new Chart(chartCanvas, {
+          type: 'bar',
+          data: {
+            labels: titles,
+            datasets: [{
+              label: 'Đánh giá trung bình',
+              data: ratings,
+              backgroundColor: 'rgba(255, 206, 86, 0.8)'
+            }]
+          },
+          options: {
+            responsive: true,
+            plugins: {
+              legend: { display: false },
+              tooltip: { mode: 'index', intersect: false }
+            },
+            scales: {
+              y: {
+                beginAtZero: true,
+                max: 5
+              }
+            }
+          }
+        });
+
+      } catch (err) {
+        alert('Đã xảy ra lỗi: ' + err.message);
       }
     }
   </script>
