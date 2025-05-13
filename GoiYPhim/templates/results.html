@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Kết quả gợi ý</title>
+    <meta charset="UTF-8">
+</head>
+<body>
+    <h1>Gợi ý phim cho User ID: {{ user_id }}</h1>
+    <ul>
+    {% for movie in recommendations %}
+        <li>{{ movie }}</li>
+    {% endfor %}
+    </ul>
+    <a href="/">Quay lại</a>
+</body>
+</html>

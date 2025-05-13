@@ -1,64 +1,45 @@
 import pandas as pd
-import numpy as np
-from scipy.sparse import csr_matrix
-from sklearn.metrics.pairwise import cosine_similarity
+from surprise import SVD, Dataset, Reader
+from surprise.model_selection import train_test_split
 
 # Load dữ liệu
 print("Đang tải dữ liệu...")
-movies = pd.read_csv('D:/GitGub/nononono/GoiYPhim/movie_recommender/data/movies.csv')
-ratings = pd.read_csv('D:/GitGub/nononono/GoiYPhim/movie_recommender/data/ratings.csv')
+movies = pd.read_csv('data/movies.csv')
+ratings = pd.read_csv('data/ratings.csv')
 
-# Lọc dữ liệu để giảm kích thước
-print("Đang lọc dữ liệu...")
-min_user_ratings = 100  # Người dùng có ít nhất 100 đánh giá
-min_movie_ratings = 200  # Phim có ít nhất 200 đánh giá
-user_counts = ratings['userId'].value_counts()
-movie_counts = ratings['movieId'].value_counts()
-filtered_ratings = ratings[
-    (ratings['userId'].isin(user_counts[user_counts >= min_user_ratings].index)) &
-    (ratings['movieId'].isin(movie_counts[movie_counts >= min_movie_ratings].index))
-]
+# Chuẩn bị dữ liệu cho Surprise
+print("Đang chuẩn bị dữ liệu...")
+reader = Reader(rating_scale=(0.5, 5.0))
+data = Dataset.load_from_df(ratings[['userId', 'movieId', 'rating']], reader)
 
-# Gộp dữ liệu
-df = filtered_ratings.merge(movies, on='movieId')[['userId', 'title', 'rating']]
+# Chia dữ liệu
+trainset, testset = train_test_split(data, test_size=0.2)
 
-# Tạo ma trận thưa user-item
-print(f"Số người dùng sau khi lọc: {len(df['userId'].unique())}")
-print(f"Số phim sau khi lọc: {len(df['title'].unique())}")
-user_ids = df['userId'].astype('category')
-movie_titles = df['title'].astype('category')
-pivot = csr_matrix(
-    (df['rating'].astype(float), (user_ids.cat.codes, movie_titles.cat.codes)),
-    shape=(len(user_ids.cat.categories), len(movie_titles.cat.categories))
-)
-print("Đã tạo ma trận thưa.")
+# Huấn luyện mô hình SVD
+print("Đang huấn luyện mô hình SVD...")
+algo = SVD()
+algo.fit(trainset)
 
-# Tính similarity giữa các phim (item-based)
-print("Đang tính similarity giữa các phim...")
-similarity = cosine_similarity(pivot.T, dense_output=False)  # .T để tính trên phim
-print("Hoàn tất tính similarity!")
+print("Đã huấn luyện xong mô hình!")
 
-# Hàm gợi ý
-def get_recommendations(user_id, top_n=5):
+# Hàm gợi ý phim
+def recommend_movies(user_id, top_n=5):
     print(f"Tìm gợi ý cho user_id: {user_id}")
-    if user_id not in user_ids.cat.categories:
+    if user_id not in ratings['userId'].unique():
         return ["❌ Không tìm thấy người dùng."]
-    
-    user_idx = user_ids.cat.categories.get_loc(user_id)
-    user_ratings = pivot[user_idx].toarray().flatten()  # Đánh giá của người dùng
-    rated_indices = np.where(user_ratings > 0)[0]  # Các phim người dùng đã đánh giá
-    
-    # Tính điểm gợi ý dựa trên độ tương đồng phim
-    scores = np.zeros(len(movie_titles.cat.categories))
-    for idx in rated_indices:
-        sim_scores = similarity[idx].toarray().flatten()
-        scores += sim_scores * user_ratings[idx]
-    
-    # Sắp xếp và loại bỏ phim đã xem
-    scores[rated_indices] = -1  # Đánh dấu phim đã xem
-    top_indices = np.argsort(scores)[::-1][:top_n]
-    recommended = [movie_titles.cat.categories[i] for i in top_indices]
-    
-    return recommended
 
-print("Đã sẵn sàng để gợi ý!")
+    rated_movies = ratings[ratings['userId'] == user_id]['movieId'].values
+    all_movie_ids = movies['movieId'].unique()
+    movies_to_predict = [mid for mid in all_movie_ids if mid not in rated_movies]
+
+    predictions = [algo.predict(user_id, mid) for mid in movies_to_predict]
+    predictions.sort(key=lambda x: x.est, reverse=True)
+    top_predictions = predictions[:top_n]
+
+    recommended_movie_ids = [pred.iid for pred in top_predictions]
+    recommended_movies = movies[movies['movieId'].isin(recommended_movie_ids)]['title'].tolist()
+
+    return recommended_movies
+
+def load_movies():
+    return movies

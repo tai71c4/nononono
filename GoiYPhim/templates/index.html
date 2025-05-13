@@ -1,35 +1,22 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="UTF-8">
-  <title>Hệ thống gợi ý phim AI</title>
-  <link rel="stylesheet" href="/static/style.css">
+    <title>Hệ thống gợi ý phim</title>
 </head>
 <body>
-  <h1>🎥 Gợi ý phim bằng AI</h1>
-  <form method="POST">
-    <input type="text" name="query" placeholder="Nhập sở thích, từ khóa phim..." required>
-    <select name="genre">
-      <option value="All">Tất cả thể loại</option>
-      {% for g in genres %}
-        <option value="{{g}}">{{g}}</option>
-      {% endfor %}
-    </select>
-    <button type="submit">Tìm kiếm</button>
-  </form>
+    <h1>Nhập ID người dùng để nhận gợi ý phim</h1>
+    <form method="post" action="/recommend">
+        <input type="number" name="user_id" required placeholder="Nhập userId...">
+        <input type="submit" value="Gợi ý">
+    </form>
 
-  <h2>Kết quả tìm kiếm:</h2>
-  <ul>
-    {% for movie in results.itertuples() %}
-      <li><b>{{movie.title}}</b> - {{movie.genres}}</li>
-    {% endfor %}
-  </ul>
-
-  <h2>Phim bạn có thể thích:</h2>
-  <ul>
-    {% for movie in recommendations.itertuples() %}
-      <li><b>{{movie.title}}</b> - {{movie.genres}}</li>
-    {% endfor %}
-  </ul>
+    {% if results %}
+        <h2>Phim được gợi ý cho user {{ user_id }}:</h2>
+        <ul>
+        {% for title in results %}
+            <li>{{ title }}</li>
+        {% endfor %}
+        </ul>
+    {% endif %}
 </body>
 </html>
