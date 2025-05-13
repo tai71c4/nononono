@@ -2,3 +2,10 @@ flask
 pandas
 numpy
 scikit-learn
+openai
+python-dotenv
+tqdm
+scipy
+matplotlib
+seaborn
+requests

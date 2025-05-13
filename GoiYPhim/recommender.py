@@ -39,7 +39,4 @@ def recommend_movies(user_id, top_n=5):
     recommended_movie_ids = [pred.iid for pred in top_predictions]
     recommended_movies = movies[movies['movieId'].isin(recommended_movie_ids)]['title'].tolist()
 
-    return recommended_movies
-
-def load_movies():
-    return movies
+    return recommended_movies if recommended_movies else ["Không tìm thấy phim phù hợp."]

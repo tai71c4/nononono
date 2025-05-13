@@ -1,22 +1,137 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Hệ thống gợi ý phim</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Movie Recommender</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <style>
+        /* Fade-in animation */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .fade-in {
+            animation: fadeIn 0.5s ease-out forwards;
+        }
+        /* Hover effect for card */
+        .movie-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+        }
+        /* Autocomplete dropdown */
+        #suggestions {
+            transition: all 0.3s ease;
+        }
+    </style>
 </head>
-<body>
-    <h1>Nhập ID người dùng để nhận gợi ý phim</h1>
-    <form method="post" action="/recommend">
-        <input type="number" name="user_id" required placeholder="Nhập userId...">
-        <input type="submit" value="Gợi ý">
-    </form>
+<body class="bg-gradient-to-br from-gray-900 to-blue-900 min-h-screen flex items-center justify-center">
+    <div class="container mx-auto px-4 py-8 max-w-4xl">
+        <!-- Header -->
+        <h1 class="text-4xl md:text-5xl font-bold text-white text-center mb-8">
+            <i class="fas fa-film mr-2"></i> Your Movie Recommendations
+        </h1>
 
-    {% if results %}
-        <h2>Phim được gợi ý cho user {{ user_id }}:</h2>
-        <ul>
-        {% for title in results %}
-            <li>{{ title }}</li>
-        {% endfor %}
-        </ul>
-    {% endif %}
+        <!-- Search Form -->
+        <div class="relative mb-12">
+            <div class="flex items-center bg-white bg-opacity-10 backdrop-blur-md rounded-lg shadow-lg p-4">
+                <input
+                    type="text"
+                    id="preferences"
+                    placeholder="Enter genres (e.g., action, sci-fi)"
+                    class="flex-1 bg-transparent text-white placeholder-gray-400 focus:outline-none p-2"
+                    oninput="showSuggestions()"
+                >
+                <button
+                    onclick="getRecommendations()"
+                    class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition duration-300 flex items-center"
+                >
+                    <i class="fas fa-search mr-2"></i> Recommend
+                </button>
+            </div>
+            <!-- Autocomplete Suggestions -->
+            <div id="suggestions" class="absolute w-full bg-white rounded-lg shadow-lg mt-2 hidden z-10">
+                <ul id="suggestion-list" class="text-gray-700"></ul>
+            </div>
+        </div>
+
+        <!-- Results -->
+        {% if results %}
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {% for movie in results %}
+            <div class="movie-card bg-white bg-opacity-10 backdrop-blur-md rounded-lg p-4 text-white fade-in transition duration-300">
+                <h3 class="text-lg font-semibold">{{ movie }}</h3>
+                <p class="text-sm text-gray-300">Genres: {{ query }}</p>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="text-center text-gray-400 italic">Enter your preferences to get movie recommendations!</p>
+        {% endif %}
+    </div>
+
+    <script>
+        // List of genre suggestions
+        const genres = [
+            'action', 'sci-fi', 'comedy', 'romance', 'horror',
+            'adventure', 'drama', 'crime', 'animation', 'family'
+        ];
+
+        // Show autocomplete suggestions
+        function showSuggestions() {
+            const input = document.getElementById('preferences').value.toLowerCase();
+            const suggestionsDiv = document.getElementById('suggestions');
+            const suggestionList = document.getElementById('suggestion-list');
+
+            if (input.length === 0) {
+                suggestionsDiv.classList.add('hidden');
+                return;
+            }
+
+            const filteredGenres = genres.filter(genre => genre.includes(input));
+            suggestionList.innerHTML = '';
+            filteredGenres.forEach(genre => {
+                const li = document.createElement('li');
+                li.classList.add('px-4', 'py-2', 'hover:bg-gray-100', 'cursor-pointer');
+                li.textContent = genre;
+                li.onclick = () => {
+                    document.getElementById('preferences').value = genre;
+                    suggestionsDiv.classList.add('hidden');
+                };
+                suggestionList.appendChild(li);
+            });
+
+            suggestionsDiv.classList.toggle('hidden', filteredGenres.length === 0);
+        }
+
+        // Send recommendation request
+        async function getRecommendations() {
+            const preferences = document.getElementById('preferences').value;
+            if (!preferences) {
+                alert('Please enter your preferences!');
+                return;
+            }
+
+            try {
+                const response = await fetch('/recommend-by-preferences', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ preferences })
+                });
+                const data = await response.json();
+
+                if (data.error) {
+                    alert(data.error);
+                } else {
+                    window.location.href = `/results?query=${encodeURIComponent(preferences)}&movies=${encodeURIComponent(JSON.stringify(data.movies))}`;
+                }
+            } catch (error) {
+                alert('An error occurred: ' + error.message);
+            }
+        }
+    </script>
 </body>
 </html>
