@@ -60,7 +60,7 @@
         onclick="getRecommendations()"
         class="ml-4 bg-yellow-500 text-black px-6 py-2 rounded-full font-semibold hover:bg-yellow-600 transition"
       >
-        <i class="fas fa-magic mr-2"></i> Tìm
+        <i class="fas fa-magic mr-2"></i> Gợi ý
       </button>
     </div>
     <div id="suggestions" class="absolute bg-white rounded-lg shadow-lg mt-2 hidden z-10 w-full max-w-3xl mx-auto">
@@ -117,7 +117,7 @@
         return;
       }
 
-      resultsContainer.innerHTML = ''; // clear cũ
+      resultsContainer.innerHTML = ''; // Xóa kết quả cũ
 
       try {
         const res = await fetch('/recommend-by-preferences', {
@@ -133,13 +133,10 @@
           return;
         }
 
-        const titles = [];
-        const ratings = [];
+        const ratings = data.movies.map(movie => movie.avg_rating);
 
+        // Hiển thị danh sách phim
         data.movies.forEach(movie => {
-          titles.push(movie.title);
-          ratings.push(movie.avg_rating);
-
           const card = document.createElement('div');
           card.className = 'movie-card bg-white bg-opacity-10 backdrop-blur rounded-xl overflow-hidden shadow-md transition-transform duration-300';
 
@@ -154,17 +151,26 @@
           resultsContainer.appendChild(card);
         });
 
-        // Vẽ biểu đồ
+        // Tính tần suất cho histogram (10 bins: 0-1, 1-2, ..., 9-10)
+        const bins = Array(10).fill(0); // Mảng 10 phần tử đại diện cho 10 bins
+        ratings.forEach(rating => {
+          const binIndex = Math.min(Math.floor(rating), 9); // Đảm bảo rating 10 nằm trong bin 9-10
+          bins[binIndex]++;
+        });
+
+        // Vẽ biểu đồ histogram
         if (chartInstance) chartInstance.destroy();
 
         chartInstance = new Chart(chartCanvas, {
           type: 'bar',
           data: {
-            labels: titles,
+            labels: ['0-1', '1-2', '2-3', '3-4', '4-5', '5-6', '6-7', '7-8', '8-9', '9-10'],
             datasets: [{
-              label: 'Đánh giá trung bình',
-              data: ratings,
-              backgroundColor: 'rgba(255, 206, 86, 0.8)'
+              label: 'Số lượng phim',
+              data: bins,
+              backgroundColor: 'rgba(255, 206, 86, 0.8)',
+              borderColor: 'rgba(0, 0, 0, 1)',
+              borderWidth: 1
             }]
           },
           options: {
@@ -176,7 +182,16 @@
             scales: {
               y: {
                 beginAtZero: true,
-                max: 5
+                title: {
+                  display: true,
+                  text: 'Số lượng phim'
+                }
+              },
+              x: {
+                title: {
+                  display: true,
+                  text: 'Đánh giá trung bình (thang 0-10)'
+                }
               }
             }
           }

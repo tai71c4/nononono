@@ -1,4 +1,6 @@
 from flask import Flask, render_template, request, jsonify
+import pandas as pd
+import json
 from recommender import search_movies_by_keywords
 
 app = Flask(__name__)
@@ -22,7 +24,17 @@ def handle_recommend():
 @app.route('/results')
 def show_results():
     query = request.args.get('query', '')
-    return render_template('index.html', query=query)
+    movies_json = request.args.get('movies', '')
+    movies = []
+
+    if movies_json:
+        try:
+            movies_data = json.loads(movies_json).get('movies', [])
+            movies = pd.DataFrame(movies_data) if movies_data else []
+        except json.JSONDecodeError:
+            movies = [{"error": "Dữ liệu không hợp lệ"}]
+
+    return render_template('index.html', query=query, movies=movies.to_dict(orient='records') if isinstance(movies, pd.DataFrame) else movies)
 
 if __name__ == '__main__':
     app.run(debug=True)
