@@ -1,0 +1,134 @@
+<!-- templates/recommendations.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Recommendations</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css"/>
+  <style>
+    body {
+      background-image: url('https://anhdepfree.com/wp-content/uploads/2019/05/background-den-dep-nhat-1.png');
+      background-size: cover;
+      background-position: center;
+    }
+
+    .backdrop-blur {
+      backdrop-filter: blur(8px);
+    }
+
+    .fade-in {
+      animation: fadeIn 0.6s ease-out forwards;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .movie-card:hover {
+      transform: translateY(-8px);
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col items-center text-white bg-black bg-opacity-50 px-4 py-8">
+  <!-- Header -->
+  <h1 class="text-5xl font-bold text-center mb-10 drop-shadow-lg">
+    <i class="fas fa-film mr-2 text-yellow-400"></i> Phim Gợi Ý
+  </h1>
+
+  <!-- Results -->
+  <div id="results" class="grid sm:grid-cols-2 md:grid-cols-3 gap-6 fade-in max-w-5xl w-full mb-16">
+    {% for movie in movies %}
+      {% if movie.error %}
+        <div class="text-red-400 text-center">{{ movie.error }}</div>
+      {% else %}
+        <div class="movie-card bg-white bg-opacity-10 backdrop-blur rounded-xl overflow-hidden shadow-md transition-transform duration-300">
+          <div class="p-4">
+            <h3 class="text-xl font-semibold text-white">{{ movie.title }} ({{ movie.year }})</h3>
+            <p class="text-sm text-gray-300">Thể loại: {{ movie.genre }}</p>
+            <p class="text-sm text-green-400">Đánh giá: {{ movie.avg_rating|round(2) }}</p>
+          </div>
+        </div>
+      {% endif %}
+    {% endfor %}
+  </div>
+
+  <!-- Chart -->
+  <div class="max-w-5xl w-full">
+    <h2 class="text-2xl font-semibold mb-4">Biểu đồ đánh giá phim:</h2>
+    <canvas id="ratingChart" height="120"></canvas>
+  </div>
+
+  <a href="/" class="mt-4 bg-blue-500 text-white px-6 py-2 rounded-full font-semibold hover:bg-blue-600 transition">
+    <i class="fas fa-arrow-left mr-2"></i> Quay Lại
+  </a>
+
+  <script>
+    let chartData = JSON.parse('{{ movies|tojson|safe }}' || '[]');
+    let chartInstance = null;
+
+    function updateChart(movies) {
+      const chartCanvas = document.getElementById('ratingChart');
+      const ratings = movies
+        .filter(movie => movie && typeof movie.avg_rating === 'number')
+        .map(movie => movie.avg_rating);
+
+      if (!ratings.length) {
+        console.warn("Không có dữ liệu hợp lệ để vẽ biểu đồ.");
+        return;
+      }
+
+      const bins = Array(10).fill(0);
+      ratings.forEach(rating => {
+        const binIndex = Math.min(Math.floor(rating), 9);
+        bins[binIndex]++;
+      });
+
+      if (chartInstance) chartInstance.destroy();
+
+      chartInstance = new Chart(chartCanvas, {
+        type: 'bar',
+        data: {
+          labels: ['0-1', '1-2', '2-3', '3-4', '4-5', '5-6', '6-7', '7-8', '8-9', '9-10'],
+          datasets: [{
+            label: 'Số lượng phim',
+            data: bins,
+            backgroundColor: 'rgba(255, 206, 86, 0.8)',
+            borderColor: 'rgba(0, 0, 0, 1)',
+            borderWidth: 1
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { display: false },
+            tooltip: { mode: 'index', intersect: false }
+          },
+          scales: {
+            y: { beginAtZero: true, title: { display: true, text: 'Số lượng phim' } },
+            x: { title: { display: true, text: 'Đánh giá trung bình (thang 0-10)' } }
+          }
+        }
+      });
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      if (chartData && Array.isArray(chartData)) {
+        updateChart(chartData);
+      } else {
+        console.warn("Dữ liệu chartData không hợp lệ hoặc rỗng:", chartData);
+      }
+    });
+  </script>
+</body>
+</html>

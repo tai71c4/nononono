@@ -1,4 +1,7 @@
+# recommender.py
 import pandas as pd
+from surprise import SVD, Dataset, Reader
+from surprise.model_selection import train_test_split
 
 # Đọc dữ liệu
 movies = pd.read_csv('data/movies.csv')
@@ -24,9 +27,44 @@ movies = movies.merge(movie_ratings, on='movieId', how='left').fillna(0)
 print("Thống kê avg_rating sau khi chuẩn hóa:")
 print(movies['avg_rating'].describe())
 
+# Chuẩn bị dữ liệu cho thư viện surprise
+reader = Reader(rating_scale=(0, 10))  # Cập nhật thang điểm thành 0-10
+data = Dataset.load_from_df(ratings[['userId', 'movieId', 'rating']], reader)
+trainset, testset = train_test_split(data, test_size=0.25)
+
+# Sử dụng thuật toán SVD để huấn luyện mô hình
+algo = SVD()
+algo.fit(trainset)
+
+def get_recommendations(user_id, n=5):
+    """
+    Gợi ý phim dựa trên Collaborative Filtering (SVD)
+    """
+    # Lấy danh sách tất cả movieId
+    all_movie_ids = movies['movieId'].unique()
+    
+    # Dự đoán điểm số cho từng phim mà user chưa xem
+    predictions = []
+    for movie_id in all_movie_ids:
+        if not ratings[(ratings['userId'] == user_id) & (ratings['movieId'] == movie_id)].empty:
+            continue  # Bỏ qua phim đã xem
+        pred = algo.predict(user_id, movie_id)
+        predictions.append((movie_id, pred.est))
+    
+    # Sắp xếp theo điểm dự đoán giảm dần
+    predictions.sort(key=lambda x: x[1], reverse=True)
+    
+    # Lấy top N phim gợi ý
+    top_n = predictions[:n]
+    recommended_movie_ids = [movie_id for movie_id, _ in top_n]
+    
+    # Lấy thông tin phim từ movies_df
+    recommended_movies = movies[movies['movieId'].isin(recommended_movie_ids)]
+    return recommended_movies[['title', 'genre', 'avg_rating', 'poster_path']].to_dict(orient='records')
+
 def search_movies_by_keywords(keywords, top_n=20):
     """
-    Tìm kiếm phim theo từ khóa từ nhiều trường, áp dụng logic AND, sắp xếp theo đánh giá cao nhất
+    Tìm kiếm phim theo từ khóa từ nhiều trường, áp dụng logic AND, sắp xếp theo avg_rating cao nhất
     """
     keywords = [keyword.strip().lower() for keyword in keywords.lower().split(',') if keyword.strip()]
     if not keywords:
