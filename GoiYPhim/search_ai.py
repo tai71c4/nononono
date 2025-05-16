@@ -1,57 +1,83 @@
-# search_ai.py
+import pyodbc
 import pandas as pd
-from recommender import movies  # Nhập DataFrame movies đã được xử lý từ recommender.py
+from datetime import datetime
 
-def search_movies_by_preferences(user_input, top_n=20):
-    """
-    Tìm kiếm phim dựa trên sở thích người dùng (từ khóa), sắp xếp theo avg_rating giảm dần.
-    """
+def get_db_connection():
+    conn = pyodbc.connect(
+        'DRIVER={ODBC Driver 18 for SQL Server};'
+            'SERVER=ASUS-TUF-GAMING;'
+            'DATABASE=HeThongGoiYPhim;'
+            'Trusted_Connection=yes;'
+            'TrustServerCertificate=yes;' 
+    )
+    return conn
+
+def search_movies(keywords, user_id=None, limit=20):
     try:
-        # Tách và chuẩn hóa từ khóa từ user_input
-        keywords = [keyword.strip().lower() for keyword in user_input.split(',') if keyword.strip()]
+        conn = get_db_connection()
+        cursor = conn.cursor()
         
-        if not keywords:
-            return [{"error": "Vui lòng nhập ít nhất một từ khóa."}]
-
-        # Phân loại từ khóa: năm và các từ khóa khác
-        year_keyword = None
-        other_keywords = []
-        for keyword in keywords:
-            if keyword.isdigit() and len(keyword) == 4:  # Giả sử từ khóa là năm nếu nó là số 4 chữ số
-                year_keyword = int(keyword)
-            else:
-                other_keywords.append(keyword)
-
-        # Khởi tạo mask ban đầu là True
-        mask = pd.Series(True, index=movies.index)
-
-        # Lọc theo năm (nếu có)
-        if year_keyword is not None:
-            if 'year' not in movies.columns:
-                return [{"error": "Dữ liệu không có cột 'year'. Vui lòng kiểm tra file movies.csv."}]
-            mask = mask & (movies['year'] == year_keyword)
-
-        # Lọc theo các trường khác (title, cast_and_crew, genre)
-        if other_keywords:
-            for keyword in other_keywords:
-                field_mask = (
-                    movies['title'].str.lower().str.contains(keyword, na=False) |
-                    movies['cast_and_crew'].str.lower().str.contains(keyword, na=False) |
-                    movies['genre'].str.lower().str.contains(keyword, na=False)
-                )
-                mask = mask & field_mask
-
-        # Lọc phim theo mask, sắp xếp theo avg_rating giảm dần
-        results = movies[mask][['title', 'genre', 'year', 'avg_rating']]
-        if results.empty:
-            return [{"error": "Không tìm thấy phim phù hợp."}]
-
-        # Sắp xếp theo avg_rating giảm dần và giới hạn số lượng kết quả
-        results = results.sort_values(by='avg_rating', ascending=False)
-        if top_n:
-            results = results.head(top_n)
+        conditions = []
+        params = []
         
-        return results.to_dict(orient='records')  # Trả về danh sách dictionary chứa thông tin phim
-
+        for term in keywords.split():
+            term = term.strip()
+            if not term:
+                continue
+            term = term.replace('%', '[%]').replace('_', '[_]')  # Escape ký tự đặc biệt
+            conditions.append("""
+                (LOWER(m.Title) LIKE ? OR 
+                 LOWER(m.Director) LIKE ? OR 
+                 LOWER(m.LeadActors) LIKE ? OR
+                 EXISTS (
+                     SELECT 1 FROM MovieGenres mg 
+                     JOIN Genres g ON mg.GenreID = g.GenreID 
+                     WHERE mg.MovieID = m.MovieID 
+                     AND LOWER(g.GenreName) LIKE ?
+                 ))
+            """)
+            search_term = f'%{term.lower()}%'
+            params.extend([search_term] * 4)
+        
+        query = f"""
+            WITH MovieGenres AS (
+                SELECT mg.MovieID, STRING_AGG(g.GenreName, ', ') AS Genres
+                FROM MovieGenres mg
+                JOIN Genres g ON mg.GenreID = g.GenreID
+                GROUP BY mg.MovieID
+            )
+            SELECT TOP {limit}
+                m.MovieID, m.Title, mg.Genres, m.ReleaseYear,
+                m.Duration, m.Director, m.LeadActors, m.Rating
+            FROM Movies m
+            JOIN MovieGenres mg ON m.MovieID = mg.MovieID
+            {'WHERE ' + ' OR '.join(conditions) if conditions else ''}
+            ORDER BY m.Rating DESC
+        """
+        
+        print(f"Search keywords: {keywords}")
+        print(f"Search params: {params}")
+        cursor.execute(query, params)
+        columns = [column[0] for column in cursor.description]
+        results = [dict(zip(columns, row)) for row in cursor.fetchall()]
+        print(f"Search results: {results}")
+        
+        if user_id and results:
+            for movie in results:
+                cursor.execute("""
+                    INSERT INTO WatchHistory (UserID, MovieID, WatchDate)
+                    SELECT ?, ?, GETDATE()
+                    WHERE NOT EXISTS (
+                        SELECT 1 FROM WatchHistory 
+                        WHERE UserID = ? AND MovieID = ?
+                    )
+                """, (user_id, movie['MovieID'], user_id, movie['MovieID']))
+            conn.commit()
+        
+        return results
+        
     except Exception as e:
-        return [{"error": f"Lỗi: {str(e)}"}]
+        print(f"Search error: {str(e)}")
+        return []
+    finally:
+        conn.close()

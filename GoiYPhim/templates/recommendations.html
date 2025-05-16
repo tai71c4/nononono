@@ -1,134 +1,117 @@
-<!-- templates/recommendations.html -->
 <!DOCTYPE html>
-<html lang="en">
+<html lang="vi">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Recommendations</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css"/>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Danh Sách Gợi Ý</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" integrity="sha512-z3gLpd7yknf1YoNbCzqRKc4qyor8gaKU1qmn+CShxbuBusANI9QpRohGBreCFkKxLhei6S9CQXFEbbKuqLg0DA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
   <style>
     body {
       background-image: url('https://anhdepfree.com/wp-content/uploads/2019/05/background-den-dep-nhat-1.png');
       background-size: cover;
       background-position: center;
+      background-attachment: fixed;
+      min-height: 100vh;
     }
-
     .backdrop-blur {
       backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
     }
-
-    .fade-in {
-      animation: fadeIn 0.6s ease-out forwards;
+    .movie-card {
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
     }
-
-    @keyframes fadeIn {
-      from {
-        opacity: 0;
-        transform: translateY(20px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
-    }
-
     .movie-card:hover {
       transform: translateY(-8px);
       box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
     }
+    .progress-bar {
+      height: 6px;
+      background-color: rgba(255, 255, 255, 0.2);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #4CAF50, #8BC34A);
+      border-radius: 3px;
+    }
   </style>
 </head>
-<body class="min-h-screen flex flex-col items-center text-white bg-black bg-opacity-50 px-4 py-8">
-  <!-- Header -->
-  <h1 class="text-5xl font-bold text-center mb-10 drop-shadow-lg">
-    <i class="fas fa-film mr-2 text-yellow-400"></i> Phim Gợi Ý
-  </h1>
+<body class="text-white bg-black bg-opacity-50 px-4 py-8">
+  <div class="max-w-5xl mx-auto mt-12">
+    <header class="flex justify-between items-center mb-10">
+      <h1 class="text-4xl font-bold drop-shadow-lg">
+        <i class="fas fa-magic mr-2 text-yellow-400"></i> Danh Sách Gợi Ý
+      </h1>
+      <div class="flex items-center space-x-4">
+        {% if username %}
+          <span class="text-gray-300">Xin chào, {{ username }}</span>
+          <form action="/logout" method="POST">
+            <button type="submit" class="px-4 py-2 bg-red-600 text-white rounded-full hover:bg-red-700 transition">
+              <i class="fas fa-sign-out-alt mr-2"></i> Đăng xuất
+            </button>
+          </form>
+        {% else %}
+          <a href="/" class="text-blue-600 hover:text-blue-800 font-medium">
+            <i class="fas fa-sign-in-alt mr-2"></i> Đăng nhập
+          </a>
+        {% endif %}
+      </div>
+    </header>
 
-  <!-- Results -->
-  <div id="results" class="grid sm:grid-cols-2 md:grid-cols-3 gap-6 fade-in max-w-5xl w-full mb-16">
-    {% for movie in movies %}
-      {% if movie.error %}
-        <div class="text-red-400 text-center">{{ movie.error }}</div>
+    {% if error %}
+      <div class="text-center text-red-400 bg-white bg-opacity-10 backdrop-blur rounded-lg p-6">
+        <i class="fas fa-exclamation-circle fa-2x mb-4"></i>
+        <p>{{ error }}</p>
+      </div>
+    {% else %}
+      {% if not movies %}
+        <div class="text-center text-gray-300 bg-white bg-opacity-10 backdrop-blur rounded-lg p-6">
+          <i class="fas fa-film fa-2x mb-4"></i>
+          <p>Chưa có gợi ý nào. Hãy xem phim để nhận gợi ý!</p>
+        </div>
       {% else %}
-        <div class="movie-card bg-white bg-opacity-10 backdrop-blur rounded-xl overflow-hidden shadow-md transition-transform duration-300">
-          <div class="p-4">
-            <h3 class="text-xl font-semibold text-white">{{ movie.title }} ({{ movie.year }})</h3>
-            <p class="text-sm text-gray-300">Thể loại: {{ movie.genre }}</p>
-            <p class="text-sm text-green-400">Đánh giá: {{ movie.avg_rating|round(2) }}</p>
-          </div>
+        <div class="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+          {% for movie in movies %}
+            <div class="movie-card bg-white bg-opacity-10 backdrop-blur rounded-xl overflow-hidden shadow-md">
+              <div class="p-4">
+                <h3 class="text-xl font-semibold text-white truncate" title="{{ movie.Title }}">
+                  {{ movie.Title }} ({{ movie.ReleaseYear }})
+                </h3>
+                <p class="text-sm text-gray-300 truncate" title="Thể loại: {{ movie.Genres }}">
+                  <span class="font-semibold">Thể loại:</span> {{ movie.Genres }}
+                </p>
+                <p class="text-sm text-gray-300">
+                  <span class="font-semibold">Thời lượng:</span> {{ movie.Duration }} phút
+                </p>
+                <p class="text-sm text-gray-300 truncate" title="Đạo diễn: {{ movie.Director }}">
+                  <span class="font-semibold">Đạo diễn:</span> {{ movie.Director or 'Chưa có' }}
+                </p>
+                <p class="text-sm text-gray-300 truncate" title="Diễn viên: {{ movie.LeadActors }}">
+                  <span class="font-semibold">Diễn viên:</span> {{ movie.LeadActors or 'Chưa có' }}
+                </p>
+                <p class="text-sm text-yellow-400">
+                  <span class="font-semibold">IMDb:</span> {{ movie.Rating|round(1) if movie.Rating else 'N/A' }}
+                </p>
+                <p class="text-sm text-green-400">
+                  <span class="font-semibold">Độ phù hợp:</span> {{ movie.RecommendationScore|round(1) }}%
+                </p>
+                <div class="progress-bar mt-2">
+                  <div class="progress-fill" style="width: {{ movie.RecommendationScore }}%"></div>
+                </div>
+              </div>
+            </div>
+          {% endfor %}
         </div>
       {% endif %}
-    {% endfor %}
+    {% endif %}
+
+    <div class="text-center mt-8">
+      <a href="/" class="bg-blue-600 text-white px-6 py-2 rounded-full font-semibold hover:bg-blue-700 transition">
+        <i class="fas fa-arrow-left mr-2"></i> Quay Lại Trang Chủ
+      </a>
+    </div>
   </div>
-
-  <!-- Chart -->
-  <div class="max-w-5xl w-full">
-    <h2 class="text-2xl font-semibold mb-4">Biểu đồ đánh giá phim:</h2>
-    <canvas id="ratingChart" height="120"></canvas>
-  </div>
-
-  <a href="/" class="mt-4 bg-blue-500 text-white px-6 py-2 rounded-full font-semibold hover:bg-blue-600 transition">
-    <i class="fas fa-arrow-left mr-2"></i> Quay Lại
-  </a>
-
-  <script>
-    let chartData = JSON.parse('{{ movies|tojson|safe }}' || '[]');
-    let chartInstance = null;
-
-    function updateChart(movies) {
-      const chartCanvas = document.getElementById('ratingChart');
-      const ratings = movies
-        .filter(movie => movie && typeof movie.avg_rating === 'number')
-        .map(movie => movie.avg_rating);
-
-      if (!ratings.length) {
-        console.warn("Không có dữ liệu hợp lệ để vẽ biểu đồ.");
-        return;
-      }
-
-      const bins = Array(10).fill(0);
-      ratings.forEach(rating => {
-        const binIndex = Math.min(Math.floor(rating), 9);
-        bins[binIndex]++;
-      });
-
-      if (chartInstance) chartInstance.destroy();
-
-      chartInstance = new Chart(chartCanvas, {
-        type: 'bar',
-        data: {
-          labels: ['0-1', '1-2', '2-3', '3-4', '4-5', '5-6', '6-7', '7-8', '8-9', '9-10'],
-          datasets: [{
-            label: 'Số lượng phim',
-            data: bins,
-            backgroundColor: 'rgba(255, 206, 86, 0.8)',
-            borderColor: 'rgba(0, 0, 0, 1)',
-            borderWidth: 1
-          }]
-        },
-        options: {
-          responsive: true,
-          plugins: {
-            legend: { display: false },
-            tooltip: { mode: 'index', intersect: false }
-          },
-          scales: {
-            y: { beginAtZero: true, title: { display: true, text: 'Số lượng phim' } },
-            x: { title: { display: true, text: 'Đánh giá trung bình (thang 0-10)' } }
-          }
-        }
-      });
-    }
-
-    document.addEventListener('DOMContentLoaded', () => {
-      if (chartData && Array.isArray(chartData)) {
-        updateChart(chartData);
-      } else {
-        console.warn("Dữ liệu chartData không hợp lệ hoặc rỗng:", chartData);
-      }
-    });
-  </script>
 </body>
 </html>

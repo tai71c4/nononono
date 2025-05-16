@@ -1,352 +1,388 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="vi">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Movie Recommender</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css"/>
-  <style>
-    body {
-      background-image: url('https://anhdepfree.com/wp-content/uploads/2019/05/background-den-dep-nhat-1.png');
-      background-size: cover;
-      background-position: center;
-    }
-
-    .backdrop-blur {
-      backdrop-filter: blur(8px);
-    }
-
-    .fade-in {
-      animation: fadeIn 0.6s ease-out forwards;
-    }
-
-    @keyframes fadeIn {
-      from {
-        opacity: 0;
-        transform: translateY(20px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
-    }
-
-    .movie-card:hover {
-      transform: translateY(-8px);
-      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
-    }
-
-    .recommendation-sidebar {
-      position: sticky;
-      top: 20px;
-      max-height: calc(100vh - 40px);
-      overflow-y: auto;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hệ Thống Gợi Ý Phim</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" integrity="sha512-z3gLpd7yknf1YoNbCzqRKc4qyor8gaKU1qmn+CShxbuBusANI9QpRohGBreCFkKxLhei6S9CQXFEbbKuqLg0DA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <style>
+        body {
+            background-image: url('https://anhdepfree.com/wp-content/uploads/2019/05/background-den-dep-nhat-1.png');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            min-height: 100vh;
+        }
+        .backdrop-blur {
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+        }
+        .movie-card {
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .movie-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+        }
+        .progress-bar {
+            height: 6px;
+            background-color: rgba(255, 255, 255, 0.2);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4CAF50, #8BC34A);
+            border-radius: 3px;
+        }
+    </style>
 </head>
-<body class="min-h-screen flex flex-row text-white bg-black bg-opacity-50 px-4 py-8">
-  <!-- Login Section (Top Right) -->
-  <div class="absolute top-4 right-4 flex items-center space-x-2">
-    <input
-      type="text"
-      id="username"
-      placeholder="Tên người dùng..."
-      class="w-32 bg-white bg-opacity-10 backdrop-blur rounded-full px-3 py-1 text-sm text-white placeholder-gray-300 focus:outline-none"
-      value="{{ username }}"
-    />
-    <button
-      onclick="login()"
-      class="bg-green-500 text-white px-2 py-1 rounded-full text-sm font-semibold hover:bg-green-600 transition"
-    >
-      <i class="fas fa-sign-in-alt mr-1"></i> Đăng Nhập
-    </button>
-    <button
-      id="logoutBtn"
-      onclick="logout()"
-      class="bg-red-500 text-white px-2 py-1 rounded-full text-sm font-semibold hover:bg-red-600 transition {% if username %} {% else %} hidden {% endif %}"
-    >
-      <i class="fas fa-sign-out-alt mr-1"></i> Đăng Xuất
-    </button>
-  </div>
+<body class="text-white bg-black bg-opacity-50 px-4 py-8">
+    <div class="max-w-5xl mx-auto mt-12">
+        <!-- Header -->
+        <header class="flex justify-between items-center mb-8 bg-white bg-opacity-10 backdrop-blur p-4 rounded-lg shadow">
+            <h1 class="text-3xl font-bold drop-shadow-lg">
+                <i class="fas fa-film mr-2 text-yellow-400"></i> Hệ Thống Gợi Ý Phim
+            </h1>
+            <div class="flex items-center space-x-4">
+                <input type="text" id="usernameInput" placeholder="Tên người dùng" 
+                       class="px-4 py-2 bg-white bg-opacity-10 border border-gray-600 rounded-full text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <button id="loginBtn" class="px-4 py-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition">
+                    <i class="fas fa-sign-in-alt mr-2"></i> Đăng nhập
+                </button>
+                <button id="logoutBtn" class="hidden px-4 py-2 bg-red-600 text-white rounded-full hover:bg-red-700 transition">
+                    <i class="fas fa-sign-out-alt mr-2"></i> Đăng xuất
+                </button>
+                <a href="/register-page" id="registerLink" class="text-blue-400 hover:text-blue-600 text-sm font-medium">
+                    Đăng ký
+                </a>
+            </div>
+        </header>
 
-  <!-- Main Content -->
-  <div class="flex-1 flex flex-col items-center mt-12">
-    <!-- Header -->
-    <h1 class="text-5xl font-bold text-center mb-10 drop-shadow-lg">
-      <i class="fas fa-film mr-2 text-yellow-400"></i> Hệ Thống Gợi Ý Phim
-    </h1>
+        <!-- Main Content -->
+        <div class="flex flex-col lg:flex-row gap-8">
+            <!-- Search Section -->
+            <div class="flex-1">
+                <div class="bg-white bg-opacity-10 backdrop-blur rounded-lg shadow p-6 mb-6">
+                    <div class="flex items-center">
+                        <input type="text" id="searchInput" 
+                               placeholder="Nhập tên phim, thể loại, đạo diễn, diễn viên hoặc năm..." 
+                               class="flex-1 px-4 py-2 bg-white bg-opacity-10 border border-gray-600 rounded-l-full text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <button id="searchBtn" class="px-6 py-2 bg-blue-600 text-white rounded-r-full hover:bg-blue-700 transition">
+                            <i class="fas fa-search mr-2"></i> Tìm kiếm
+                        </button>
+                    </div>
+                </div>
 
-    <!-- Keyword Input for Search -->
-    <div class="mb-12 max-w-3xl w-full">
-      <div class="flex items-center bg-white bg-opacity-10 backdrop-blur rounded-full px-6 py-3 shadow-lg">
-        <input
-          type="text"
-          id="keywords"
-          placeholder="Nhập thể loại, diễn viên, năm, tiêu đề..."
-          class="flex-1 bg-transparent text-white placeholder-gray-300 focus:outline-none"
-          oninput="showSuggestions()"
-        />
-        <button
-          onclick="searchMovies()"
-          class="ml-4 bg-blue-500 text-white px-6 py-2 rounded-full font-semibold hover:bg-blue-600 transition"
-        >
-          <i class="fas fa-search mr-2"></i> Tìm Kiếm
-        </button>
-      </div>
-      <div id="suggestions" class="absolute bg-white rounded-lg shadow-lg mt-2 hidden z-10 w-full max-w-3xl mx-auto">
-        <ul id="suggestion-list" class="text-gray-800"></ul>
-      </div>
+                <!-- Search Results -->
+                <div class="bg-white bg-opacity-10 backdrop-blur rounded-lg shadow p-6">
+                    <h2 class="text-xl font-semibold mb-4 text-white border-b border-gray-600 pb-2">Kết quả tìm kiếm</h2>
+                    <div id="searchResults" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <div class="text-center py-12 text-gray-300 col-span-full">
+                            <i class="fas fa-search fa-2x mb-4"></i>
+                            <p>Nhập từ khóa và nhấn tìm kiếm để bắt đầu</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recommendations Sidebar -->
+            <div class="lg:w-80">
+                <div class="bg-white bg-opacity-10 backdrop-blur rounded-lg shadow p-6 sticky top-4">
+                    <div class="flex justify-between items-center mb-4 border-b border-gray-600 pb-2">
+                        <h2 class="text-xl font-semibold text-white">Gợi ý cho bạn</h2>
+                        <a href="/recommendations-page" class="text-blue-400 hover:text-blue-600 text-sm font-medium">
+                            Xem tất cả <i class="fas fa-arrow-right ml-1"></i>
+                        </a>
+                    </div>
+                    <div id="recommendationsList" class="space-y-4">
+                        <div class="text-center py-8 text-gray-300">
+                            <i class="fas fa-spinner fa-spin fa-2x mb-4"></i>
+                            <p>Đang tải gợi ý...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <!-- Results -->
-    <div id="results" class="grid sm:grid-cols-2 md:grid-cols-3 gap-6 fade-in max-w-5xl w-full mb-16"></div>
+    <script>
+        // Xử lý đăng nhập
+        document.getElementById('loginBtn').addEventListener('click', async () => {
+            const username = document.getElementById('usernameInput').value.trim();
+            if (!username) {
+                alert('Vui lòng nhập tên người dùng');
+                return;
+            }
 
-    <!-- Chart -->
-    <div class="max-w-5xl w-full">
-      <h2 class="text-2xl font-semibold mb-4">Biểu đồ đánh giá phim:</h2>
-      <canvas id="ratingChart" height="120"></canvas>
-    </div>
-  </div>
+            console.log('Sending login request for username:', username);
+            try {
+                const response = await fetch('/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username })
+                });
 
-  <!-- Recommendation Sidebar -->
-  <div class="w-80 recommendation-sidebar mt-20 mr-4">
-    <h2 class="text-2xl font-semibold mb-4">Phim Gợi Ý</h2>
-    <button
-      onclick="redirectToRecommendations()"
-      class="mb-4 bg-yellow-500 text-black px-6 py-2 rounded-full font-semibold hover:bg-yellow-600 transition w-full"
-    >
-      <i class="fas fa-magic mr-2"></i> Gợi Ý
-    </button>
-    <div id="recommendations" class="space-y-4"></div>
-  </div>
+                const data = await response.json();
+                console.log('Login response:', data);
+                if (data.error) {
+                    alert(`Lỗi đăng nhập: ${data.error}`);
+                    return;
+                }
 
-  <script>
-    const genres = ['action', 'sci-fi', 'comedy', 'romance', 'horror', 'adventure', 'drama', 'crime', 'animation', 'family'];
-    let chartInstance = null;
-    let currentUser = '{{ username }}' || localStorage.getItem('currentUser') || null;
-
-    document.addEventListener('DOMContentLoaded', () => {
-      if (currentUser) {
-        document.getElementById('username').value = currentUser;
-        document.getElementById('username').disabled = true;
-        document.getElementById('logoutBtn').classList.remove('hidden');
-        const savedMovies = localStorage.getItem('lastSearchResults');
-        if (savedMovies) {
-          const movies = JSON.parse(savedMovies);
-          displayMovies(movies, document.getElementById('results'));
-          updateChart(movies);
-        }
-        getRecommendations();
-      }
-    });
-
-    function login() {
-      const username = document.getElementById('username').value.trim();
-      if (!username) {
-        alert("Vui lòng nhập tên người dùng!");
-        return;
-      }
-      currentUser = username;
-      localStorage.setItem('currentUser', currentUser);
-      alert(`Đăng nhập thành công với tên người dùng: ${currentUser}`);
-      document.getElementById('logoutBtn').classList.remove('hidden');
-      document.getElementById('username').disabled = true;
-      const savedMovies = localStorage.getItem('lastSearchResults');
-      if (savedMovies) {
-        const movies = JSON.parse(savedMovies);
-        displayMovies(movies, document.getElementById('results'));
-        updateChart(movies);
-      }
-      getRecommendations();
-    }
-
-    async function logout() {
-      try {
-        await fetch('/logout', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' }
-        });
-        currentUser = null;
-        localStorage.removeItem('currentUser');
-        document.getElementById('logoutBtn').classList.add('hidden');
-        document.getElementById('username').disabled = false;
-        document.getElementById('username').value = '';
-        document.getElementById('results').innerHTML = '';
-        document.getElementById('recommendations').innerHTML = '';
-        if (chartInstance) chartInstance.destroy();
-        chartInstance = null;
-      } catch (err) {
-        alert('Đã xảy ra lỗi: ' + err.message);
-      }
-    }
-
-    function redirectToRecommendations() {
-      if (!currentUser) {
-        alert("Vui lòng đăng nhập trước khi nhận gợi ý!");
-        return;
-      }
-      window.location.href = `/recommendations?username=${encodeURIComponent(currentUser)}`;
-    }
-
-    function showSuggestions() {
-      const input = document.getElementById('keywords').value.toLowerCase();
-      const suggestionsDiv = document.getElementById('suggestions');
-      const suggestionList = document.getElementById('suggestion-list');
-
-      if (!input) {
-        suggestionsDiv.classList.add('hidden');
-        return;
-      }
-
-      const filtered = genres.filter(g => g.includes(input));
-      suggestionList.innerHTML = '';
-      filtered.forEach(g => {
-        const li = document.createElement('li');
-        li.className = 'px-4 py-2 hover:bg-gray-100 cursor-pointer';
-        li.textContent = g;
-        li.onclick = () => {
-          document.getElementById('keywords').value = g;
-          suggestionsDiv.classList.add('hidden');
-        };
-        suggestionList.appendChild(li);
-      });
-
-      suggestionsDiv.classList.toggle('hidden', filtered.length === 0);
-    }
-
-    async function searchMovies() {
-      if (!currentUser) {
-        alert("Vui lòng đăng nhập trước khi tìm kiếm!");
-        return;
-      }
-
-      const keywords = document.getElementById('keywords').value.trim();
-      const resultsContainer = document.getElementById('results');
-
-      if (!keywords) {
-        alert("Vui lòng nhập từ khóa!");
-        return;
-      }
-
-      resultsContainer.innerHTML = '';
-
-      try {
-        const res = await fetch('/search', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ keywords, username: currentUser })
+                document.getElementById('loginBtn').classList.add('hidden');
+                document.getElementById('logoutBtn').classList.remove('hidden');
+                document.getElementById('registerLink').classList.add('hidden');
+                document.getElementById('usernameInput').disabled = true;
+                
+                loadRecommendations();
+                
+                alert(data.message || 'Đăng nhập thành công!');
+            } catch (error) {
+                console.error('Login error:', error);
+                alert('Đăng nhập thất bại. Vui lòng kiểm tra kết nối và thử lại.');
+            }
         });
 
-        const data = await res.json();
+        // Xử lý đăng xuất
+        document.getElementById('logoutBtn').addEventListener('click', async () => {
+            console.log('Sending logout request');
+            try {
+                const response = await fetch('/logout', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
 
-        if (data.error) {
-          alert(data.error);
-          return;
-        }
-
-        displayMovies(data.movies, resultsContainer);
-        updateChart(data.movies);
-        localStorage.setItem('lastSearchResults', JSON.stringify(data.movies));
-        getRecommendations();
-      } catch (err) {
-        alert('Đã xảy ra lỗi: ' + err.message);
-      }
-    }
-
-    async function getRecommendations() {
-      if (!currentUser) {
-        alert("Vui lòng đăng nhập trước khi nhận gợi ý!");
-        return;
-      }
-
-      const recommendationsContainer = document.getElementById('recommendations');
-
-      try {
-        const res = await fetch('/recommend-by-preferences', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username: currentUser })
+                const data = await response.json();
+                console.log('Logout response:', data);
+                if (data.success) {
+                    document.getElementById('loginBtn').classList.remove('hidden');
+                    document.getElementById('logoutBtn').classList.add('hidden');
+                    document.getElementById('registerLink').classList.remove('hidden');
+                    document.getElementById('usernameInput').disabled = false;
+                    document.getElementById('usernameInput').value = '';
+                    
+                    document.getElementById('searchResults').innerHTML = `
+                        <div class="text-center py-12 text-gray-300 col-span-full">
+                            <i class="fas fa-search fa-2x mb-4"></i>
+                            <p>Nhập từ khóa và nhấn tìm kiếm để bắt đầu</p>
+                        </div>
+                    `;
+                    
+                    document.getElementById('recommendationsList').innerHTML = `
+                        <div class="text-center py-8 text-gray-300">
+                            <p>Vui lòng đăng nhập để xem gợi ý</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('Logout error:', error);
+                alert('Đăng xuất thất bại. Vui lòng thử lại.');
+            }
         });
 
-        const data = await res.json();
+        // Xử lý tìm kiếm
+        document.getElementById('searchBtn').addEventListener('click', searchMovies);
+        document.getElementById('searchInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') searchMovies();
+        });
 
-        if (data.error) {
-          alert(data.error);
-          return;
+        async function searchMovies() {
+            const query = document.getElementById('searchInput').value.trim();
+            if (!query) {
+                alert('Vui lòng nhập từ khóa tìm kiếm');
+                return;
+            }
+
+            console.log('Sending search request with keywords:', query);
+            const resultsContainer = document.getElementById('searchResults');
+            resultsContainer.innerHTML = `
+                <div class="col-span-full text-center py-12">
+                    <i class="fas fa-spinner fa-spin fa-2x text-gray-300 mb-4"></i>
+                    <p class="text-gray-300">Đang tìm kiếm...</p>
+                </div>
+            `;
+
+            try {
+                const response = await fetch('/search', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ keywords: query })
+                });
+
+                const data = await response.json();
+                console.log('Search response:', data);
+                if (data.error) {
+                    resultsContainer.innerHTML = `
+                        <div class="col-span-full text-center py-12 text-red-400">
+                            <i class="fas fa-exclamation-circle fa-2x mb-4"></i>
+                            <p>${data.error}</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                if (!data.movies || data.movies.length === 0) {
+                    resultsContainer.innerHTML = `
+                        <div class="col-span-full text-center py-12 text-gray-300">
+                            <i class="fas fa-film fa-2x mb-4"></i>
+                            <p>Không tìm thấy phim phù hợp với từ khóa "${query}"</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                displayMovies(data.movies, resultsContainer);
+            } catch (error) {
+                console.error('Search error:', error);
+                resultsContainer.innerHTML = `
+                    <div class="col-span-full text-center py-12 text-red-400">
+                        <i class="fas fa-exclamation-circle fa-2x mb-4"></i>
+                        <p>Lỗi khi tìm kiếm. Vui lòng kiểm tra kết nối và thử lại.</p>
+                    </div>
+                `;
+            }
         }
 
-        displayMovies(data.movies, recommendationsContainer);
-      } catch (err) {
-        alert('Đã xảy ra lỗi: ' + err.message);
-      }
-    }
+        // Load gợi ý
+        async function loadRecommendations() {
+            console.log('Loading recommendations');
+            const container = document.getElementById('recommendationsList');
+            container.innerHTML = `
+                <div class="text-center py-8">
+                    <i class="fas fa-spinner fa-spin fa-2x text-gray-300 mb-4"></i>
+                    <p class="text-gray-300">Đang tải gợi ý...</p>
+                </div>
+            `;
 
-    function displayMovies(movies, container) {
-      container.innerHTML = '';
+            try {
+                const response = await fetch('/recommendations');
+                const data = await response.json();
+                console.log('Recommendations response:', data);
+                
+                if (data.error) {
+                    container.innerHTML = `
+                        <div class="text-center py-8 text-red-400">
+                            <i class="fas fa-exclamation-circle fa-2x mb-4"></i>
+                            <p>${data.error}</p>
+                        </div>
+                    `;
+                    return;
+                }
 
-      movies.forEach(movie => {
-        if (movie.error) {
-          const errorDiv = document.createElement('div');
-          errorDiv.className = 'text-red-400 text-center';
-          errorDiv.textContent = movie.error;
-          container.appendChild(errorDiv);
-          return;
+                displayRecommendations(data.recommendations, container);
+            } catch (error) {
+                console.error('Load recommendations error:', error);
+                container.innerHTML = `
+                    <div class="text-center py-8 text-red-400">
+                        <i class="fas fa-exclamation-circle fa-2x mb-4"></i>
+                        <p>Lỗi khi tải gợi ý. Vui lòng kiểm tra kết nối và thử lại.</p>
+                    </div>
+                `;
+            }
         }
 
-        const card = document.createElement('div');
-        card.className = 'movie-card bg-white bg-opacity-10 backdrop-blur rounded-xl overflow-hidden shadow-md transition-transform duration-300';
+        // Hiển thị danh sách phim
+        function displayMovies(movies, container) {
+            let html = '';
+            movies.forEach(movie => {
+                html += `
+                    <div class="movie-card bg-white bg-opacity-10 backdrop-blur rounded-lg overflow-hidden shadow">
+                        <div class="p-4">
+                            <h3 class="font-bold text-lg text-white mb-1 truncate" title="${movie.Title}">
+                                ${movie.Title} (${movie.ReleaseYear})
+                            </h3>
+                            <p class="text-sm text-gray-300 mb-1 truncate" title="Thể loại: ${movie.Genres}">
+                                <span class="font-semibold">Thể loại:</span> ${movie.Genres}
+                            </p>
+                            <p class="text-sm text-gray-300 mb-1 truncate" title="Đạo diễn: ${movie.Director}">
+                                <span class="font-semibold">Đạo diễn:</span> ${movie.Director || 'N/A'}
+                            </p>
+                            <div class="flex justify-between items-center mt-3">
+                                <span class="text-yellow-400 font-bold">
+                                    <i class="fas fa-star mr-1"></i>${movie.Rating ? movie.Rating.toFixed(1) : 'N/A'}/10
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
 
-        card.innerHTML = `
-          <div class="p-4">
-            <h3 class="text-xl font-semibold text-white">${movie.title} (${movie.year})</h3>
-            <p class="text-sm text-gray-300">Thể loại: ${movie.genre}</p>
-            <p class="text-sm text-green-400">Đánh giá: ${movie.avg_rating.toFixed(2)}</p>
-          </div>
-        `;
-
-        container.appendChild(card);
-      });
-    }
-
-    function updateChart(movies) {
-      const chartCanvas = document.getElementById('ratingChart');
-      const ratings = movies.map(movie => movie.avg_rating).filter(rating => typeof rating === 'number');
-
-      const bins = Array(10).fill(0);
-      ratings.forEach(rating => {
-        const binIndex = Math.min(Math.floor(rating), 9);
-        bins[binIndex]++;
-      });
-
-      if (chartInstance) chartInstance.destroy();
-
-      chartInstance = new Chart(chartCanvas, {
-        type: 'bar',
-        data: {
-          labels: ['0-1', '1-2', '2-3', '3-4', '4-5', '5-6', '6-7', '7-8', '8-9', '9-10'],
-          datasets: [{
-            label: 'Số lượng phim',
-            data: bins,
-            backgroundColor: 'rgba(255, 206, 86, 0.8)',
-            borderColor: 'rgba(0, 0, 0, 1)',
-            borderWidth: 1
-          }]
-        },
-        options: {
-          responsive: true,
-          plugins: {
-            legend: { display: false },
-            tooltip: { mode: 'index', intersect: false }
-          },
-          scales: {
-            y: { beginAtZero: true, title: { display: true, text: 'Số lượng phim' } },
-            x: { title: { display: true, text: 'Đánh giá trung bình (thang 0-10)' } }
-          }
+            container.innerHTML = html;
         }
-      });
-    }
-  </script>
+
+        // Hiển thị gợi ý
+        function displayRecommendations(recommendations, container) {
+            if (!recommendations || recommendations.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-8 text-gray-300">
+                        <i class="fas fa-film fa-2x mb-4"></i>
+                        <p>Chưa có gợi ý nào</p>
+                    </div>
+                `;
+                return;
+            }
+
+            let html = '';
+            recommendations.forEach(movie => {
+                const score = Math.min(100, Math.round(movie.RecommendationScore));
+                
+                html += `
+                    <div class="movie-card bg-white bg-opacity-10 backdrop-blur rounded-lg overflow-hidden shadow">
+                        <div class="p-4">
+                            <h3 class="font-bold text-lg text-white mb-1 truncate" title="${movie.Title}">
+                                ${movie.Title} (${movie.ReleaseYear})
+                            </h3>
+                            <p class="text-sm text-gray-300 mb-1 truncate" title="Thể loại: ${movie.Genres}">
+                                <span class="font-semibold">Thể loại:</span> ${movie.Genres}
+                            </p>
+                            <p class="text-sm text-gray-300 mb-1 truncate" title="Đạo diễn: ${movie.Director}">
+                                <span class="font-semibold">Đạo diễn:</span> ${movie.Director || 'N/A'}
+                            </p>
+                            <div class="flex justify-between items-center mt-2">
+                                <span class="text-yellow-400 font-bold">
+                                    <i class="fas fa-star mr-1"></i>${movie.Rating ? movie.Rating.toFixed(1) : 'N/A'}/10
+                                </span>
+                                <span class="text-green-400 font-medium">
+                                    ${score}% phù hợp
+                                </span>
+                            </div>
+                            <div class="progress-bar mt-2">
+                                <div class="progress-fill" style="width: ${score}%"></div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+        }
+
+        // Kiểm tra trạng thái đăng nhập
+        document.addEventListener('DOMContentLoaded', async () => {
+            console.log('Checking login status');
+            try {
+                const response = await fetch('/recommendations');
+                const data = await response.json();
+                console.log('Login status check response:', data);
+                if (!data.error) {
+                    document.getElementById('loginBtn').classList.add('hidden');
+                    document.getElementById('logoutBtn').classList.remove('hidden');
+                    document.getElementById('registerLink').classList.add('hidden');
+                    document.getElementById('usernameInput').disabled = true;
+                    loadRecommendations();
+                }
+            } catch (error) {
+                console.error('Check login status error:', error);
+            }
+        });
+    </script>
 </body>
 </html>
