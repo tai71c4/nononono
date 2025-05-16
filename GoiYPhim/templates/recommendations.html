@@ -98,7 +98,7 @@
                   <span class="font-semibold">Độ phù hợp:</span> {{ movie.RecommendationScore|round(1) }}%
                 </p>
                 <div class="progress-bar mt-2">
-                  <div class="progress-fill" style="width: {{ movie.RecommendationScore }}%"></div>
+                  <div class="progress-fill" style="width: {{ movie.RecommendationScore|default(0)|float }}%"></div>
                 </div>
               </div>
             </div>
